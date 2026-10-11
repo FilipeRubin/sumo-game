@@ -25,3 +25,13 @@ func control_car() -> void:
 	$CameraBoom/Camera3D.make_current()
 	$Label.set_visible(true)
 	$PlayerLabel.set_visible(false)
+
+func destroy_car() -> void:
+	if get_multiplayer_authority() == get_multiplayer().get_unique_id():
+		queue_free()
+	else:
+		_destroy_car_remote.rpc_id(get_multiplayer_authority())
+
+@rpc("any_peer", "call_remote", "reliable")
+func _destroy_car_remote() -> void:
+	queue_free()
