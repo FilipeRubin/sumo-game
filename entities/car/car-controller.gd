@@ -2,7 +2,7 @@ class_name CarController extends Node
 
 # Vehicle references.
 @export var vehicle: VehicleBody3D
-@export var gear_label: Label3D
+@export var reverse_light: MeshInstance3D
 
 # Engine settings.
 @export var max_engine_force: float = 6000.0
@@ -29,7 +29,7 @@ class_name CarController extends Node
 @export var final_drive_ratio: float = 3.27
 @export var drivetrain_efficiency: float = 0.85
 @export var wheel_radius: float = 0.364
-@export var reverse_speed_limit: float = 1.5
+@export var reverse_speed_limit: float = 2.0
 
 # Automatic transmission settings.
 @export var shift_up_rpm: float = 5400.0
@@ -47,7 +47,10 @@ class_name CarController extends Node
 # Gear values:
 # -1 = Reverse
 #  1+ = Drive gears
-var current_gear: int = 1
+@export var current_gear: int = 1 :
+	set(value):
+		current_gear = value
+		_update_gear_label()
 
 var current_steering: float = 0.0
 var engine_rpm: float = 800.0
@@ -123,7 +126,6 @@ func _handle_drive_input(speed: float) -> void:
 		current_gear = -1
 
 	shift_timer = shift_delay
-	_update_gear_label()
 
 
 func _update_engine_rpm(
@@ -286,10 +288,8 @@ func _apply_engine(throttle: float) -> void:
 
 
 func _update_gear_label() -> void:
-	if gear_label == null:
-		return
-
+	var mat: StandardMaterial3D = reverse_light.get_active_material(0) as StandardMaterial3D
 	if current_gear == -1:
-		gear_label.text = "R"
+		mat.emission_enabled = true
 	else:
-		gear_label.text = "D%d" % current_gear
+		mat.emission_enabled = false

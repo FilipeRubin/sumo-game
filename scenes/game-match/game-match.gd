@@ -39,10 +39,12 @@ func _spawn_cars_for_all_players() -> void:
 		var car: Car = preload("res://entities/car/car.scn").instantiate()
 		if i < team1_max_index:
 			car.set_transform(_current_map.get_team_1_spawners_transform()[i])
+			car.team = 1
 		else:
 			car.set_transform(_current_map.get_team_2_spawners_transform()[i - team1_max_index])
+			car.team = 2
 		_car_container.add_child(car, true)
-		_set_car_authority.rpc(car.get_name(), id_array[i], i < team1_max_index)
+		_set_car_authority.rpc(car.get_name(), id_array[i])
 
 func _process(_delta: float):
 	if Input.is_action_just_pressed("ui_close_dialog"):
@@ -67,11 +69,11 @@ func _on_pause_menu_leave_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main-menu/main-menu.scn")
 
 @rpc("authority", "call_local", "reliable")
-func _set_car_authority(car_name: String, id: int, team: int) -> void:
+func _set_car_authority(car_name: String, id: int) -> void:
 	var car: Car = _car_container.get_node_or_null(car_name)
 	if car == null:
 		push_warning("Car not found!")
-	car.team = team
 	car.set_multiplayer_authority(id)
 	if car.is_multiplayer_authority():
 		car.control_car()
+		car.player_name = Globals.player_name
