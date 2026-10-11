@@ -14,7 +14,7 @@ func _ready() -> void:
 	get_multiplayer().connected_to_server.connect(_on_connected_to_server)
 
 func _on_created_server() -> void:
-	get_tree().change_scene_to_file("res://scenes/game/game.scn")
+	get_tree().change_scene_to_file("res://scenes/game-server/game-server.scn")
 
 func _on_connected_to_server() -> void:
-	get_tree().change_scene_to_file("res://scenes/game/game.scn")
+	get_tree().change_scene_to_file("res://scenes/game-server/game-server.scn")
