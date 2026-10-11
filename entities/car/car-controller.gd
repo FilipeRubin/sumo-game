@@ -3,6 +3,7 @@ class_name CarController extends Node
 # Vehicle references.
 @export var vehicle: VehicleBody3D
 @export var reverse_light: MeshInstance3D
+@export var brake_light: MeshInstance3D
 
 # Engine settings.
 @export var max_engine_force: float = 6000.0
@@ -52,6 +53,12 @@ class_name CarController extends Node
 		current_gear = value
 		_update_gear_label()
 
+@export var is_braking: bool = false :
+	set(value):
+		is_braking = value
+		var mat: StandardMaterial3D = brake_light.get_active_material(0) as StandardMaterial3D
+		mat.emission_enabled = is_braking
+
 var current_steering: float = 0.0
 var engine_rpm: float = 800.0
 var shift_timer: float = 0.0
@@ -72,6 +79,8 @@ func _physics_process(delta: float) -> void:
 	# Read inputs.
 	var throttle: float = Input.get_action_strength("accelerate")
 	var brake_input: float = Input.get_action_strength("brake")
+	
+	is_braking = brake_input != 0.0
 
 	var steering_input: float = Input.get_axis(
 		"steer_right",

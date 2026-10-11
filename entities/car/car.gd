@@ -12,6 +12,7 @@ var team: int :
 			mat.albedo_color = Color.GOLDENROD
 			$PlayerLabel.set_modulate(Color.GOLDENROD)
 		$MeshInstance3D.get_mesh().surface_set_material(0, mat)
+		$MeshInstance3D2.get_mesh().surface_set_material(0, mat)
 
 @export
 var player_name: String :
