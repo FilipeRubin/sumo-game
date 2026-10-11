@@ -31,9 +31,13 @@ func _ready() -> void:
 
 func temp_delete_me_later() -> void:
 	_current_map.get_camera().clear_current()
-	var car: VehicleBody3D = preload("res://entities/car/car.scn").instantiate()
+	var car: Car = preload("res://entities/car/car.scn").instantiate()
 	_car_container.add_child(car)
 	car.set_transform(_current_map.get_team_1_spawners_transform()[0])
+	car.control_car()
+	car = preload("res://entities/car/car.scn").instantiate()
+	car.set_transform(_current_map.get_team_2_spawners_transform()[0])
+	_car_container.add_child(car)
 
 func _process(_delta: float):
 	if Input.is_action_just_pressed("ui_close_dialog"):
