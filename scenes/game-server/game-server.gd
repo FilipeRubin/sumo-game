@@ -20,5 +20,13 @@ func _on_start_pressed(map_index: int) -> void:
 	for i: Node in _scene_root.get_children():
 		i.queue_free()
 	var game_match: GameMatch = GAME_MATCH.instantiate()
+	game_match.back_to_lobby_requested.connect(_on_back_to_lobby_requested)
 	_scene_root.add_child(game_match)
 	game_match.start_map(map_index)
+
+func _on_back_to_lobby_requested() -> void:
+	for i: Node in _scene_root.get_children():
+		i.queue_free()
+	var lobby: Lobby = LOBBY.instantiate()
+	lobby.start_pressed.connect(_on_start_pressed)
+	_scene_root.add_child(lobby)

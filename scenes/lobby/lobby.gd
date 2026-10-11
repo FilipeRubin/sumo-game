@@ -16,6 +16,10 @@ func _ready() -> void:
 		var entry: PlayerListEntry = PLAYER_LIST_ENTRY.instantiate()
 		_player_list.add_child(entry, true)
 		entry.set_player_name(str(get_multiplayer().get_unique_id()))
+		for id: int in get_multiplayer().get_peers():
+			var peer_entry: PlayerListEntry = PLAYER_LIST_ENTRY.instantiate()
+			_player_list.add_child(peer_entry, true)
+			peer_entry.set_player_name(str(id))
 		get_multiplayer().peer_connected.connect(_on_peer_connected)
 		get_multiplayer().peer_disconnected.connect(_on_peer_disconnected)
 
