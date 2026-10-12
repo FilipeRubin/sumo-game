@@ -16,7 +16,7 @@ func _ready() -> void:
 func _on_host_button_pressed() -> void:
 	var port: int = _port_line.get_text().to_int()
 	var peer: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
-	if peer.create_server(port) == OK:
+	if peer.create_server(port, 23) == OK:
 		get_multiplayer().set_multiplayer_peer(peer)
 		created_server.emit()
 

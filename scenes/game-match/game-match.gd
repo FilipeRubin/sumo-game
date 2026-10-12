@@ -4,7 +4,8 @@ signal back_to_lobby_requested()
 
 const MAPS: Array[PackedScene] = [
 	preload("res://maps/map0/map0.scn"),
-	preload("res://maps/map1/map1.scn")
+	preload("res://maps/map1/map1.scn"),
+	preload("res://maps/map2/map2.scn")
 ]
 
 const SAFE_AREA: PackedScene = preload("res://entities/safe-area/safe-area.scn")
