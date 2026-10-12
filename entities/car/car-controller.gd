@@ -30,7 +30,7 @@ class_name CarController extends Node
 @export var final_drive_ratio: float = 3.27
 @export var drivetrain_efficiency: float = 0.85
 @export var wheel_radius: float = 0.364
-@export var reverse_speed_limit: float = 2.0
+@export var reverse_speed_limit: float = 4.0
 
 # Automatic transmission settings.
 @export var shift_up_rpm: float = 5400.0

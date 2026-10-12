@@ -19,6 +19,8 @@ const SAFE_AREA: PackedScene = preload("res://entities/safe-area/safe-area.scn")
 
 var _current_map: Map = null
 var _current_safe_area: SafeArea = null
+var _spectator_mode: bool = true
+var _spectating_car: int = 0
 
 func start_map(map_index: int) -> void:
 	if _current_map != null:
@@ -68,6 +70,18 @@ func _process(_delta: float):
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if _pause_menu.is_visible() else Input.MOUSE_MODE_CAPTURED)
 	_match_hud.set_visible(not _pause_menu.is_visible())
 	_match_hud.set_progress(_safe_timer.get_time_left())
+	
+	if _spectator_mode and _car_container.get_child_count() > 0:
+		if Input.is_action_just_pressed("steer_right"):
+			_spectating_car += 1
+			if _spectating_car > (_car_container.get_child_count() - 1):
+				_spectating_car = 0
+			_camera.attach_to(_car_container.get_child(_spectating_car))
+		elif Input.is_action_just_pressed("steer_left"):
+			_spectating_car -= 1
+			if _spectating_car < 0:
+				_spectating_car = _car_container.get_child_count() - 1
+			_camera.attach_to(_car_container.get_child(_spectating_car))
 
 func _on_map_spawned(node: Node) -> void:
 	var map: Map = node
@@ -128,6 +142,11 @@ func _on_safe_timer_timeout() -> void:
 	else:
 		_set_winning_text.rpc(winner)
 
+func _on_my_car_destroyed() -> void:
+	_spectator_mode = true
+	if _car_container.get_child_count() > 0:
+		_camera.attach_to(_car_container.get_child(0) as Node3D)
+
 @rpc("authority", "call_local", "reliable")
 func _set_car_authority(car_name: String, id: int) -> void:
 	var car: Car = _car_container.get_node_or_null(car_name)
@@ -135,7 +154,9 @@ func _set_car_authority(car_name: String, id: int) -> void:
 		push_warning("Car not found!")
 	car.set_multiplayer_authority(id)
 	if car.is_multiplayer_authority():
+		_spectator_mode = false
 		car.control_car()
+		car.my_car_destroyed.connect(_on_my_car_destroyed)
 		_camera.attach_to(car)
 		car.player_name = Globals.player_name
 

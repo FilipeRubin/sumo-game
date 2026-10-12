@@ -1,5 +1,7 @@
 class_name Car extends VehicleBody3D
 
+signal my_car_destroyed()
+
 @export
 var team: int :
 	set(value):
@@ -30,6 +32,8 @@ func destroy_car() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func _destroy_car_remote() -> void:
+	if get_multiplayer_authority() == get_multiplayer().get_unique_id():
+		my_car_destroyed.emit()
 	set_multiplayer_authority(1)
 	if get_multiplayer().is_server():
 		queue_free()
