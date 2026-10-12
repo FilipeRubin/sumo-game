@@ -27,11 +27,10 @@ func control_car() -> void:
 	$PlayerLabel.set_visible(false)
 
 func destroy_car() -> void:
-	if get_multiplayer_authority() == get_multiplayer().get_unique_id():
-		queue_free()
-	else:
-		_destroy_car_remote.rpc_id(get_multiplayer_authority())
+	_destroy_car_remote.rpc()
 
-@rpc("any_peer", "call_remote", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _destroy_car_remote() -> void:
-	queue_free()
+	set_multiplayer_authority(1)
+	if get_multiplayer().is_server():
+		queue_free()

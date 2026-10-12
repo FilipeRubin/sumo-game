@@ -87,6 +87,18 @@ func _kill_unsafe_cars() -> void:
 		if car.get_multiplayer_authority() not in safe_cars_ids:
 			car.destroy_car()
 
+func _check_winner() -> int:
+	if _car_container.get_children().size() == 0:
+		return 0
+	var last_team_checked: int = -1
+	for car: Car in _car_container.get_children():
+		if last_team_checked == -1:
+			last_team_checked = car.team
+			continue
+		if last_team_checked != car.team:
+			return -1
+	return last_team_checked
+
 func _create_random_safe_area() -> void:
 	_start_safe_timer_for_all.rpc()
 	for i: Node in _safe_area_container.get_children():
@@ -99,7 +111,12 @@ func _create_random_safe_area() -> void:
 
 func _on_safe_timer_timeout() -> void:
 	_kill_unsafe_cars()
-	_create_random_safe_area()
+	await get_tree().create_timer(1.0).timeout
+	var winner: int = _check_winner()
+	if winner == -1:
+		_create_random_safe_area()
+	else:
+		_set_winning_text.rpc(winner)
 
 @rpc("authority", "call_local", "reliable")
 func _set_car_authority(car_name: String, id: int) -> void:
@@ -114,3 +131,12 @@ func _set_car_authority(car_name: String, id: int) -> void:
 @rpc("authority", "call_local", "reliable")
 func _start_safe_timer_for_all() -> void:
 	_safe_timer.start()
+
+@rpc("authority", "call_local", "reliable")
+func _set_winning_text(winner: int) -> void:
+	if winner == 0:
+		_match_hud.set_winning_text("It's a draw!", Color.WHITE)
+	elif winner == 1:
+		_match_hud.set_winning_text("Team 1 wins!", Color.DARK_ORCHID)
+	elif winner == 2:
+		_match_hud.set_winning_text("Team 2 wins!", Color.GOLDENROD)
