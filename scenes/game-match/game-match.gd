@@ -158,6 +158,7 @@ func _set_car_authority(car_name: String, id: int) -> void:
 	if car.is_multiplayer_authority():
 		_spectator_mode = false
 		car.control_car()
+		car.emblem_bytes = Globals.saved_emblem
 		car.my_car_destroyed.connect(_on_my_car_destroyed)
 		_camera.attach_to(car)
 		car.player_name = Globals.player_name

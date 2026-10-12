@@ -22,6 +22,17 @@ var player_name: String :
 		player_name = value
 		$PlayerLabel.set_text(player_name)
 
+@export
+var emblem_bytes: PackedByteArray :
+	set(value):
+		emblem_bytes = value
+		if emblem_bytes.size() == 0:
+			return
+		var emblem_image: Image = Image.new()
+		emblem_image.load_png_from_buffer(emblem_bytes)
+		var emblem_texture: Texture2D = ImageTexture.create_from_image(emblem_image)
+		$Emblem.texture_albedo = emblem_texture
+
 func control_car() -> void:
 	$CarController.set_physics_process(true)
 	$Label.set_visible(true)
