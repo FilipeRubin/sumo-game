@@ -1,12 +1,12 @@
 class_name Map extends Node3D
 
-@export var _camera: Camera3D
+@export var _camera_target: Marker3D
 @export var _team_1_spawners_root: Node
 @export var _team_2_spawners_root: Node
 @export var _safe_areas_root: Node
 
-func get_camera() -> Camera3D:
-	return _camera
+func get_camera_target() -> Marker3D:
+	return _camera_target
 
 func get_team_1_spawners_transform() -> Array[Transform3D]:
 	var result: Array[Transform3D] = []

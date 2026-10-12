@@ -22,7 +22,6 @@ var player_name: String :
 
 func control_car() -> void:
 	$CarController.set_physics_process(true)
-	$CameraBoom/Camera3D.make_current()
 	$Label.set_visible(true)
 	$PlayerLabel.set_visible(false)
 

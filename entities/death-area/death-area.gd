@@ -1,6 +1,7 @@
 class_name DeathArea extends Area3D
 
 func _ready() -> void:
+	collision_mask = 2
 	if get_multiplayer().is_server():
 		body_entered.connect(_on_body_entered)
 

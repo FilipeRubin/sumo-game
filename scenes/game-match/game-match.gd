@@ -11,9 +11,11 @@ const SAFE_AREA: PackedScene = preload("res://entities/safe-area/safe-area.scn")
 @export var _map_container: Node
 @export var _car_container: Node
 @export var _safe_area_container: Node
+@export var _map_spawner: MultiplayerSpawner
 @export var _pause_menu: PauseMenu
 @export var _match_hud: MatchHUD
 @export var _safe_timer: Timer
+@export var _camera: DynamicCamera
 
 var _current_map: Map = null
 var _current_safe_area: SafeArea = null
@@ -28,6 +30,7 @@ func start_map(map_index: int) -> void:
 	_spawn_cars_for_all_players()
 
 func _ready() -> void:
+	_map_spawner.spawned.connect(_on_map_spawned)
 	_pause_menu.set_visible(false)
 	_match_hud.set_visible(true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -39,6 +42,9 @@ func _ready() -> void:
 		_safe_timer.timeout.connect(_on_safe_timer_timeout)
 		await get_tree().create_timer(10.0).timeout
 		_create_random_safe_area()
+
+func _exit_tree() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _spawn_cars_for_all_players() -> void:
 	var id_array: Array = get_multiplayer().get_peers()
@@ -62,6 +68,10 @@ func _process(_delta: float):
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if _pause_menu.is_visible() else Input.MOUSE_MODE_CAPTURED)
 	_match_hud.set_visible(not _pause_menu.is_visible())
 	_match_hud.set_progress(_safe_timer.get_time_left())
+
+func _on_map_spawned(node: Node) -> void:
+	var map: Map = node
+	_camera.attach_to(map.get_camera_target())
 
 func _on_peer_disconnected(id: int) -> void:
 	for car: Car in _car_container.get_children():
@@ -126,6 +136,7 @@ func _set_car_authority(car_name: String, id: int) -> void:
 	car.set_multiplayer_authority(id)
 	if car.is_multiplayer_authority():
 		car.control_car()
+		_camera.attach_to(car)
 		car.player_name = Globals.player_name
 
 @rpc("authority", "call_local", "reliable")
