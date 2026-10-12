@@ -7,8 +7,11 @@ const PLAYER_LIST_ENTRY: PackedScene = preload("res://scenes/lobby/player-list-e
 @export var _player_list: VBoxContainer
 @export var _start_button: Button
 @export var _map_selector: OptionButton
+@export var _leave_button: Button
 
 func _ready() -> void:
+	_leave_button.pressed.connect(_on_leave_pressed)
+	
 	if get_multiplayer().is_server():
 		_map_selector.set_disabled(false)
 		_start_button.set_disabled(false)
@@ -40,6 +43,11 @@ func _on_start_button_pressed() -> void:
 	if get_multiplayer().get_peers().size() == 0:
 		return
 	start_pressed.emit(_map_selector.get_selected())
+
+func _on_leave_pressed() -> void:
+	get_multiplayer().get_multiplayer_peer().close()
+	get_multiplayer().set_multiplayer_peer(OfflineMultiplayerPeer.new())
+	get_tree().change_scene_to_file("res://scenes/main-menu/main-menu.scn")
 
 @rpc("authority", "call_remote", "reliable")
 func _request_send_player_name() -> void:
