@@ -30,6 +30,16 @@ func control_car() -> void:
 func destroy_car() -> void:
 	_destroy_car_remote.rpc()
 
+func _ready() -> void:
+	get_multiplayer().peer_connected.connect(_on_peer_connected)
+
+func _on_peer_connected(id: int) -> void:
+	_send_authority.rpc_id(id, get_multiplayer_authority())
+
+@rpc("authority", "call_remote", "reliable")
+func _send_authority(id: int) -> void:
+	set_multiplayer_authority(id)
+
 @rpc("any_peer", "call_local", "reliable")
 func _destroy_car_remote() -> void:
 	if get_multiplayer_authority() == get_multiplayer().get_unique_id():
