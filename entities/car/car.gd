@@ -33,10 +33,13 @@ var emblem_bytes: PackedByteArray :
 		var emblem_texture: Texture2D = ImageTexture.create_from_image(emblem_image)
 		$Emblem.texture_albedo = emblem_texture
 
+var _recently_collided: Array[Car] = []
+
 func control_car() -> void:
 	$CarController.set_physics_process(true)
 	$Label.set_visible(true)
 	$PlayerLabel.set_visible(false)
+	body_entered.connect(_on_body_entered)
 
 func destroy_car() -> void:
 	_destroy_car_remote.rpc()
@@ -46,6 +49,13 @@ func _ready() -> void:
 
 func _on_peer_connected(id: int) -> void:
 	_send_authority.rpc_id(id, get_multiplayer_authority())
+
+func _on_body_entered(body: Node) -> void:
+	if body is Car and body not in _recently_collided:
+		linear_velocity += (body.linear_velocity / 2.0)
+		_recently_collided.append(body)
+		await get_tree().create_timer(0.4).timeout
+		_recently_collided.erase(body)
 
 @rpc("authority", "call_remote", "reliable")
 func _send_authority(id: int) -> void:
