@@ -7,7 +7,7 @@ class_name CarController extends Node
 
 # Engine settings.
 @export var max_engine_force: float = 6000.0
-@export var reverse_engine_force: float = 2000.0
+@export var reverse_engine_force: float = 3000.0
 @export var idle_rpm: float = 800.0
 @export var peak_torque_rpm: float = 4400.0
 @export var redline_rpm: float = 6200.0
@@ -15,7 +15,7 @@ class_name CarController extends Node
 # Engine response settings.
 @export var engine_acceleration: float = 2500.0
 @export var engine_deceleration: float = 3500.0
-@export var engine_braking: float = 1800.0
+@export var engine_braking: float = 2400.0
 @export var clutch_response: float = 5.0
 
 # Transmission settings.
