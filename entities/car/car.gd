@@ -52,7 +52,7 @@ func _on_peer_connected(id: int) -> void:
 
 func _on_body_entered(body: Node) -> void:
 	if body is Car and body not in _recently_collided:
-		linear_velocity += (body.linear_velocity / 2.0)
+		linear_velocity += body.linear_velocity * 0.55
 		_recently_collided.append(body)
 		await get_tree().create_timer(0.4).timeout
 		_recently_collided.erase(body)
