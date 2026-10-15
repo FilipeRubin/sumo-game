@@ -47,7 +47,7 @@ func _ready() -> void:
 			return
 		_safe_timer.timeout.connect(_on_safe_timer_timeout)
 		await get_tree().create_timer(10.0).timeout
-		if _check_winner() != -1:
+		if _check_winner() == -1:
 			_create_random_safe_area()
 
 func _exit_tree() -> void:
