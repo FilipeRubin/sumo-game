@@ -43,9 +43,12 @@ func _ready() -> void:
 	if get_multiplayer().is_server():
 		_pause_menu.lobby_pressed.connect(_on_pause_menu_lobby_pressed)
 		get_multiplayer().peer_disconnected.connect(_on_peer_disconnected)
+		if get_multiplayer().get_peers().size() == 0:
+			return
 		_safe_timer.timeout.connect(_on_safe_timer_timeout)
 		await get_tree().create_timer(10.0).timeout
-		_create_random_safe_area()
+		if _check_winner() != -1:
+			_create_random_safe_area()
 
 func _exit_tree() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -64,6 +67,7 @@ func _spawn_cars_for_all_players() -> void:
 			car.set_transform(_current_map.get_team_2_spawners_transform()[i - team1_max_index])
 			car.team = 2
 		_car_container.add_child(car, true)
+		car.tree_exited.connect(_on_car_tree_exited)
 		_set_car_authority.rpc(car.get_name(), id_array[i])
 
 func _process(_delta: float):
@@ -148,6 +152,18 @@ func _on_my_car_destroyed() -> void:
 	_spectator_mode = true
 	if _car_container.get_child_count() > 0:
 		_camera.attach_to(_car_container.get_child(0) as Node3D)
+
+func _on_car_tree_exited() -> void:
+	if not is_inside_tree():
+		return
+	
+	var winner: int = _check_winner()
+	
+	if winner != -1:
+		_safe_timer.stop()
+		for i: Node in _safe_area_container.get_children():
+			i.queue_free()
+		_set_winning_text.rpc(winner)
 
 @rpc("authority", "call_local", "reliable")
 func _set_car_authority(car_name: String, id: int) -> void:

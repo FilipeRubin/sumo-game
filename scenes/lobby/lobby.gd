@@ -40,8 +40,6 @@ func _on_peer_disconnected(id: int) -> void:
 			i.queue_free()
 
 func _on_start_button_pressed() -> void:
-	if get_multiplayer().get_peers().size() == 0:
-		return
 	start_pressed.emit(_map_selector.get_selected())
 
 func _on_leave_pressed() -> void:
