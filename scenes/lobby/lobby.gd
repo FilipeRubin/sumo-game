@@ -24,15 +24,15 @@ func _ready() -> void:
 			var peer_entry: PlayerListEntry = PLAYER_LIST_ENTRY.instantiate()
 			_player_list.add_child(peer_entry, true)
 			peer_entry.id = id
-			_request_send_player_name.rpc_id(id)
 		get_multiplayer().peer_connected.connect(_on_peer_connected)
 		get_multiplayer().peer_disconnected.connect(_on_peer_disconnected)
+	else:
+		_send_player_name_to_server.rpc_id(1, Globals.player_name)
 
 func _on_peer_connected(id: int) -> void:
 	var entry: PlayerListEntry = PLAYER_LIST_ENTRY.instantiate()
 	_player_list.add_child(entry, true)
 	entry.id = id
-	_request_send_player_name.rpc_id(id)
 
 func _on_peer_disconnected(id: int) -> void:
 	for i: PlayerListEntry in _player_list.get_children():
@@ -46,10 +46,6 @@ func _on_leave_pressed() -> void:
 	get_multiplayer().get_multiplayer_peer().close()
 	get_multiplayer().set_multiplayer_peer(OfflineMultiplayerPeer.new())
 	get_tree().change_scene_to_file("res://scenes/main-menu/main-menu.scn")
-
-@rpc("authority", "call_remote", "reliable")
-func _request_send_player_name() -> void:
-	_send_player_name_to_server.rpc_id(1, Globals.player_name)
 
 @rpc("any_peer", "call_remote", "reliable")
 func _send_player_name_to_server(player_name: String) -> void:
