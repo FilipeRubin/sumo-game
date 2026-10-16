@@ -12,9 +12,9 @@ func _ready() -> void:
 	_name_line.text_changed.connect(_on_name_line_text_changed)
 	_host_button.pressed.connect(_on_host_button_pressed)
 	_join_button.pressed.connect(_on_join_button_pressed)
+	_name_line.set_text(Globals.player_name)
 	_host_button.set_disabled(_name_line.get_text().length() == 0)
 	_join_button.set_disabled(_name_line.get_text().length() == 0)
-	_name_line.set_text(Globals.player_name)
 
 func _on_name_line_text_changed(new_text: String) -> void:
 	_host_button.set_disabled(new_text.length() == 0)

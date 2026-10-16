@@ -1,6 +1,6 @@
 class_name EmblemCanvas extends Control
 
-const CANVAS_SIZE: Vector2i = Vector2i(64, 64)
+const CANVAS_SIZE: Vector2i = Vector2i(128, 128)
 const BACKGROUND_COLOR: Color = Color.WHITE
 const MIN_BRUSH_SIZE: float = 1.0
 const MAX_BRUSH_SIZE: float = 16.0
