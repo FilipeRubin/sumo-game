@@ -68,6 +68,20 @@ class_name CarController extends Node
 # Steering settings.
 @export var max_steering_angle: float = 0.3
 @export var steering_speed: float = 1.1
+# The max steering angle shrinks as speed increases, which keeps the car stable.
+# Speed (m/s) at which the reduction is complete, and the fraction of max_steering_angle left.
+@export var steering_reduction_speed: float = 30.0
+@export var min_steering_factor: float = 0.3
+
+# Engine sound settings.
+# A looping AudioStreamPlayer3D (change the type if you use a plain AudioStreamPlayer).
+@export var engine_audio: AudioStreamPlayer3D
+# RPM at which the loop sample was recorded (pitch_scale = 1.0).
+@export var audio_reference_rpm: float = 3000.0
+# Volume off throttle / at full throttle.
+@export var audio_min_volume_db: float = -14.0
+@export var audio_max_volume_db: float = 0.0
+@export var audio_volume_response: float = 6.0
 
 # Gear values:
 # -1 = Reverse
@@ -154,10 +168,14 @@ func _physics_process(delta: float) -> void:
 	_apply_engine(throttle)
 	vehicle.brake = brake_input * max_brake_force
 
-	# Smooth steering.
-	var target_steering: float = (
-		steering_input * max_steering_angle
+	# Smooth steering. The steering angle shrinks as speed increases.
+	var steering_limit: float = lerpf(
+		max_steering_angle,
+		max_steering_angle * min_steering_factor,
+		clampf(speed / steering_reduction_speed, 0.0, 1.0)
 	)
+
+	var target_steering: float = steering_input * steering_limit
 
 	current_steering = move_toward(
 		current_steering,
@@ -167,8 +185,9 @@ func _physics_process(delta: float) -> void:
 
 	vehicle.steering = current_steering
 
-	# Wheel visuals.
+	# Wheel visuals and sound.
 	_update_wheel_visuals(ground_rpm, delta)
+	_update_engine_sound(throttle, delta)
 
 	# Update dashboard.
 	_update_gear_label()
@@ -539,6 +558,45 @@ func _update_wheel_visuals(ground_rpm: float, delta: float) -> void:
 			Basis(Vector3.RIGHT, -_visual_spin_angle[i]) *
 			_visual_rest_basis[i]
 		)
+
+
+func _update_engine_sound(throttle: float, delta: float) -> void:
+	if engine_audio == null:
+		return
+
+	# The sample must have looping enabled in its import settings.
+	if not engine_audio.playing:
+		engine_audio.play()
+
+	# Pitch follows the engine rpm.
+	engine_audio.pitch_scale = clampf(
+		engine_rpm / audio_reference_rpm,
+		0.1,
+		4.0
+	)
+
+	# Volume follows throttle (mostly) and rpm.
+	var rpm_factor: float = inverse_lerp(
+		idle_rpm,
+		redline_rpm,
+		engine_rpm
+	)
+	var loudness: float = clampf(
+		throttle * 0.7 + rpm_factor * 0.3,
+		0.0,
+		1.0
+	)
+	var target_db: float = lerpf(
+		audio_min_volume_db,
+		audio_max_volume_db,
+		loudness
+	)
+
+	engine_audio.volume_db = lerpf(
+		engine_audio.volume_db,
+		target_db,
+		1.0 - exp(-audio_volume_response * delta)
+	)
 
 
 func _update_gear_label() -> void:
