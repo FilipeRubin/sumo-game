@@ -9,6 +9,8 @@ enum TurnSignalMode {
 
 @export var mesh: MeshInstance3D
 @export var indicator_timer: Timer
+@export var indicator_sound_in: AudioStreamPlayer3D
+@export var indicator_sound_out: AudioStreamPlayer3D
 
 @export var indicator_multiplayer: int = 0 :
 	set(value):
@@ -68,9 +70,21 @@ func _on_indicator_timer_timeout() -> void:
 		TurnSignalMode.LEFT:
 			left_mat.emission_enabled = not left_mat.emission_enabled
 			right_mat.emission_enabled = false
+			if left_mat.emission_enabled:
+				indicator_sound_in.play()
+			else:
+				indicator_sound_out.play()
 		TurnSignalMode.RIGHT:
 			left_mat.emission_enabled = false
 			right_mat.emission_enabled = not right_mat.emission_enabled
+			if right_mat.emission_enabled:
+				indicator_sound_in.play()
+			else:
+				indicator_sound_out.play()
 		TurnSignalMode.HAZARD:
 			left_mat.emission_enabled = not left_mat.emission_enabled
 			right_mat.emission_enabled = left_mat.emission_enabled
+			if left_mat.emission_enabled:
+				indicator_sound_in.play()
+			else:
+				indicator_sound_out.play()
