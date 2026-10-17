@@ -77,7 +77,7 @@ class_name CarController extends Node
 # A looping AudioStreamPlayer3D (change the type if you use a plain AudioStreamPlayer).
 @export var engine_audio: AudioStreamPlayer3D
 # RPM at which the loop sample was recorded (pitch_scale = 1.0).
-@export var audio_reference_rpm: float = 3000.0
+@export var audio_reference_rpm: float = 1800.0
 # Volume off throttle / at full throttle.
 @export var audio_min_volume_db: float = -14.0
 @export var audio_max_volume_db: float = 0.0
