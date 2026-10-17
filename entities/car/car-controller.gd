@@ -2,8 +2,11 @@ class_name CarController extends Node
 
 # Vehicle references.
 @export var vehicle: VehicleBody3D
-@export var reverse_light: MeshInstance3D
-@export var brake_light: MeshInstance3D
+@export var mesh: MeshInstance3D
+
+# Optional: leave empty to auto-detect the VehicleWheel3D children of the vehicle.
+# Only wheels with "use_as_traction" enabled are treated as driven wheels.
+@export var wheels: Array[VehicleWheel3D] = []
 
 # Engine settings.
 @export var max_engine_force: float = 6000.0
@@ -16,7 +19,12 @@ class_name CarController extends Node
 @export var engine_acceleration: float = 2500.0
 @export var engine_deceleration: float = 3500.0
 @export var engine_braking: float = 2000.0
+# How fast the clutch re-engages after a shift (1 / seconds).
 @export var clutch_response: float = 5.0
+# How fast the engine revs when nothing is holding it back (neutral, wheels in the air, stuck).
+@export var free_rev_acceleration: float = 6000.0
+# RPM the engine can reach while launching from a stop (clutch / torque converter slip).
+@export var launch_rpm: float = 2200.0
 
 # Transmission settings.
 @export var gear_ratios: Array[float] = [
@@ -37,6 +45,22 @@ class_name CarController extends Node
 @export var shift_down_rpm: float = 2200.0
 @export var shift_delay: float = 0.4
 @export var kickdown_throttle: float = 0.85
+# The automatic gearbox holds the current gear while slip is above this value.
+@export var slip_gear_hold: float = 0.25
+
+# Wheel spin settings.
+# How fast the driven wheels speed up / slow down while slipping.
+@export var wheel_spin_response: float = 6.0
+# How fast the driven wheels re-sync with the ground when grip returns.
+@export var wheel_grip_response: float = 25.0
+# Rotate the wheel meshes with the "virtual" wheel speed (needs a Node3D child on each driven wheel).
+@export var spin_wheel_visuals: bool = true
+
+# "Stuck" detection: throttle pressed, in gear, but the car is not moving.
+@export var stuck_speed: float = 0.8
+@export var stuck_delay: float = 0.35
+# How much the wheels spin (0..1) once the car is considered stuck.
+@export var stuck_wheelspin: float = 0.7
 
 # Brake settings.
 @export var max_brake_force: float = 80.0
@@ -47,6 +71,7 @@ class_name CarController extends Node
 
 # Gear values:
 # -1 = Reverse
+#  0 = Neutral
 #  1+ = Drive gears
 @export var current_gear: int = 1 :
 	set(value):
@@ -56,15 +81,37 @@ class_name CarController extends Node
 @export var is_braking: bool = false :
 	set(value):
 		is_braking = value
-		var mat: StandardMaterial3D = brake_light.get_active_material(0) as StandardMaterial3D
+		var mat: StandardMaterial3D = mesh.get_mesh().surface_get_material(2)
 		mat.emission_enabled = is_braking
+
+const SLIP_SMOOTHING: float = 10.0
 
 var current_steering: float = 0.0
 var engine_rpm: float = 800.0
 var shift_timer: float = 0.0
 
+# Drivetrain state.
+# 0 = clutch open (no torque), 1 = fully engaged.
+var clutch: float = 1.0
+# Virtual rpm of the driven wheels. Positive = rolling forward.
+# Matches the ground speed when there is grip, but can differ when there is not.
+var wheel_rpm: float = 0.0
+# 0 = full grip, 1 = no traction at all (wheels in the air, ice, stuck...).
+var drive_slip: float = 0.0
+var stuck_timer: float = 0.0
+
+# Driven wheels and their visuals (all arrays share the same index).
+var _driven_wheels: Array[VehicleWheel3D] = []
+var _wheel_visuals: Array[Node3D] = []
+var _visual_rest_basis: Array[Basis] = []
+# Estimate of how fast Godot itself is rotating each wheel.
+var _physics_wheel_rpm: PackedFloat32Array = PackedFloat32Array()
+# Extra rotation we add on top of Godot's wheel rotation.
+var _visual_spin_angle: PackedFloat32Array = PackedFloat32Array()
+
 func _ready() -> void:
 	set_physics_process(false)
+	_setup_wheels()
 
 func _physics_process(delta: float) -> void:
 	if vehicle == null:
@@ -76,24 +123,32 @@ func _physics_process(delta: float) -> void:
 	)
 	var speed: float = absf(forward_speed)
 
+	# Rpm the wheels would have if they were rolling on the ground (signed).
+	var ground_rpm: float = (
+		forward_speed / wheel_radius * 60.0 / (2.0 * PI)
+	)
+
 	# Read inputs.
 	var throttle: float = Input.get_action_strength("accelerate")
 	var brake_input: float = Input.get_action_strength("brake")
-	
+
 	is_braking = brake_input != 0.0
 
 	var steering_input: float = Input.get_axis(
 		"steer_right",
-        "steer_left"
+		"steer_left"
 	)
 
 	# Toggle between Drive and Reverse.
 	_handle_drive_input(speed)
 
-	# Update engine RPM and automatic transmission.
-	_update_engine_rpm(speed, throttle, delta)
+	# Drivetrain: traction -> wheels -> engine -> transmission.
+	clutch = move_toward(clutch, 1.0, clutch_response * delta)
+
+	_update_drive_slip(speed, throttle, brake_input, delta)
+	_update_wheel_rpm(ground_rpm, throttle, brake_input, delta)
+	_update_engine_rpm(throttle, delta)
 	_handle_automatic_transmission(delta, throttle)
-	_update_engine_rpm(speed, throttle, delta)
 
 	# Apply engine force and brakes.
 	_apply_engine(throttle)
@@ -112,6 +167,9 @@ func _physics_process(delta: float) -> void:
 
 	vehicle.steering = current_steering
 
+	# Wheel visuals.
+	_update_wheel_visuals(ground_rpm, delta)
+
 	# Update dashboard.
 	_update_gear_label()
 
@@ -119,6 +177,44 @@ func _physics_process(delta: float) -> void:
 		vehicle.linear_velocity.length() * 3.6,
 		engine_rpm
 	]
+
+
+func _setup_wheels() -> void:
+	if vehicle == null:
+		return
+
+	var found: Array[VehicleWheel3D] = []
+
+	for wheel in wheels:
+		found.append(wheel)
+
+	if found.is_empty():
+		for child in vehicle.get_children():
+			if child is VehicleWheel3D:
+				found.append(child)
+
+	for wheel in found:
+		if not wheel.use_as_traction:
+			continue
+
+		var visual: Node3D = _find_wheel_visual(wheel)
+
+		_driven_wheels.append(wheel)
+		_wheel_visuals.append(visual)
+		_visual_rest_basis.append(
+			visual.basis if visual != null else Basis.IDENTITY
+		)
+		_physics_wheel_rpm.append(0.0)
+		_visual_spin_angle.append(0.0)
+
+
+func _find_wheel_visual(wheel: VehicleWheel3D) -> Node3D:
+	# Uses the first Node3D child of the wheel (usually its MeshInstance3D).
+	for child in wheel.get_children():
+		if child is Node3D:
+			return child
+
+	return null
 
 
 func _handle_drive_input(speed: float) -> void:
@@ -134,53 +230,154 @@ func _handle_drive_input(speed: float) -> void:
 	else:
 		current_gear = -1
 
+	_begin_shift()
+
+
+func _begin_shift() -> void:
 	shift_timer = shift_delay
+	# Opening the clutch cuts the torque for a moment.
+	clutch = 0.0
 
 
-func _update_engine_rpm(
+func _get_gear_direction() -> float:
+	if current_gear == -1:
+		return -1.0
+
+	return 1.0
+
+
+func _get_total_ratio() -> float:
+	# Total reduction between engine and wheels. 0 in neutral.
+	if current_gear == -1:
+		return reverse_ratio * final_drive_ratio
+
+	if current_gear >= 1 and current_gear <= gear_ratios.size():
+		return gear_ratios[current_gear - 1] * final_drive_ratio
+
+	return 0.0
+
+
+func _update_drive_slip(
 	speed: float,
 	throttle: float,
+	brake_input: float,
 	delta: float
 ) -> void:
-	var target_rpm: float = idle_rpm
+	var slip: float = 0.0
 
-	# Calculate wheel RPM from vehicle speed.
-	var wheel_rpm: float = (
-		speed / wheel_radius * 60.0 / (2.0 * PI)
+	# Wheels in the air or skidding have no traction.
+	if not _driven_wheels.is_empty():
+		for wheel in _driven_wheels:
+			if wheel.is_in_contact():
+				slip += 1.0 - wheel.get_skidinfo()
+			else:
+				slip += 1.0
+
+		slip /= float(_driven_wheels.size())
+
+	# Stuck: the driver is asking for power, the car is in gear,
+	# but it is not going anywhere (mud, high-centered, against a wall...).
+	var trying_to_move: bool = (
+		throttle > 0.5
+		and brake_input < 0.1
+		and clutch >= 1.0
+		and _get_total_ratio() > 0.0
 	)
 
-	if current_gear > 0 and not gear_ratios.is_empty():
-		var gear_index: int = current_gear - 1
-		var ratio: float = gear_ratios[gear_index]
-
-		target_rpm = maxf(
-			idle_rpm,
-			wheel_rpm * ratio * final_drive_ratio
-		)
-
-	elif current_gear == -1:
-		target_rpm = maxf(
-			idle_rpm,
-			wheel_rpm * reverse_ratio * final_drive_ratio
-		)
-
+	if trying_to_move and speed < stuck_speed:
+		stuck_timer += delta
 	else:
-		# Engine revs independently in neutral.
-		target_rpm = lerpf(
-			idle_rpm,
-			peak_torque_rpm,
-			throttle
-		)
+		stuck_timer = 0.0
 
-	target_rpm = minf(target_rpm, redline_rpm)
+	if stuck_timer > stuck_delay:
+		slip = maxf(slip, stuck_wheelspin)
+
+	# Smooth it, contact / skid info can be noisy from frame to frame.
+	drive_slip = lerpf(
+		drive_slip,
+		clampf(slip, 0.0, 1.0),
+		1.0 - exp(-SLIP_SMOOTHING * delta)
+	)
+
+
+func _update_wheel_rpm(
+	ground_rpm: float,
+	throttle: float,
+	brake_input: float,
+	delta: float
+) -> void:
+	var ratio: float = _get_total_ratio()
+
+	# What the wheels do when the ground does NOT hold them.
+	var free_wheel_rpm: float
+
+	if ratio > 0.0 and throttle > 0.01 and clutch > 0.5:
+		# The engine drags the wheels along.
+		free_wheel_rpm = engine_rpm / ratio * _get_gear_direction()
+	elif brake_input > 0.01:
+		# Brakes locking the wheels.
+		free_wheel_rpm = 0.0
+	else:
+		# Nothing pushes or stops them, they slowly lose speed.
+		free_wheel_rpm = wheel_rpm * pow(0.99, delta * 60.0)
+
+	# Full grip: wheels follow the ground. No grip: wheels follow the engine.
+	var target_rpm: float = lerpf(ground_rpm, free_wheel_rpm, drive_slip)
+	var response: float = lerpf(
+		wheel_grip_response,
+		wheel_spin_response,
+		drive_slip
+	)
+
+	wheel_rpm = lerpf(
+		wheel_rpm,
+		target_rpm,
+		1.0 - exp(-response * delta)
+	)
+
+	# Close enough with grip: lock to the ground exactly.
+	if drive_slip < 0.01 and absf(wheel_rpm - ground_rpm) < 20.0:
+		wheel_rpm = ground_rpm
+
+
+func _update_engine_rpm(throttle: float, delta: float) -> void:
+	var ratio: float = _get_total_ratio()
+
+	# What the engine does when nothing holds it back.
+	var free_rpm: float = lerpf(idle_rpm, redline_rpm, throttle)
+
+	var target_rpm: float = free_rpm
+	# 1 = engine is completely unloaded (revs freely).
+	var unloaded: float = 1.0
+
+	if ratio > 0.0:
+		# What the wheels force on the engine when they are connected.
+		var coupled_rpm: float = absf(wheel_rpm) * ratio
+
+		# Launching: the clutch / torque converter slips,
+		# so the engine can rev above what the wheels ask for.
+		if absi(current_gear) == 1:
+			coupled_rpm = maxf(
+				coupled_rpm,
+				lerpf(idle_rpm, launch_rpm, throttle)
+			)
+
+		# Less traction means less load on the engine.
+		unloaded = drive_slip
+		target_rpm = lerpf(coupled_rpm, free_rpm, drive_slip)
+
+	target_rpm = clampf(target_rpm, idle_rpm, redline_rpm)
 
 	# Smooth the engine response.
 	var response: float = engine_deceleration
 
 	if target_rpm > engine_rpm:
-		response = engine_acceleration
-
-	if throttle <= 0.01 and target_rpm < engine_rpm:
+		response = lerpf(
+			engine_acceleration,
+			free_rev_acceleration,
+			unloaded
+		)
+	elif throttle <= 0.01:
 		response = engine_braking
 
 	engine_rpm = move_toward(
@@ -209,6 +406,11 @@ func _handle_automatic_transmission(
 	if shift_timer > 0.0:
 		return
 
+	# While the wheels slip, engine rpm no longer says anything about
+	# the car's speed, so keep the current gear.
+	if drive_slip > slip_gear_hold:
+		return
+
 	var gear_count: int = gear_ratios.size()
 
 	if gear_count == 0:
@@ -227,21 +429,21 @@ func _handle_automatic_transmission(
 
 		if next_lower_rpm < redline_rpm:
 			current_gear -= 1
-			shift_timer = shift_delay
+			_begin_shift()
 			return
 
 	# Upshift near the target RPM.
 	if engine_rpm >= shift_up_rpm:
 		if current_gear < gear_count:
 			current_gear += 1
-			shift_timer = shift_delay
+			_begin_shift()
 			return
 
 	# Downshift when RPM is low.
 	if engine_rpm <= shift_down_rpm:
 		if current_gear > 1:
 			current_gear -= 1
-			shift_timer = shift_delay
+			_begin_shift()
 
 
 func _get_torque_factor() -> float:
@@ -268,12 +470,18 @@ func _get_torque_factor() -> float:
 
 
 func _apply_engine(throttle: float) -> void:
+	# Neutral.
+	if current_gear == 0:
+		vehicle.engine_force = 0.0
+		return
+
 	# Reverse.
 	if current_gear == -1:
 		vehicle.engine_force = (
 			-throttle *
 			reverse_engine_force *
-			_get_torque_factor()
+			_get_torque_factor() *
+			clutch
 		)
 		return
 
@@ -292,12 +500,49 @@ func _apply_engine(throttle: float) -> void:
 		throttle *
 		max_engine_force *
 		gear_multiplier *
-		_get_torque_factor()
+		_get_torque_factor() *
+		clutch
 	)
 
 
+func _update_wheel_visuals(ground_rpm: float, delta: float) -> void:
+	for i in _driven_wheels.size():
+		var wheel: VehicleWheel3D = _driven_wheels[i]
+
+		# Estimate how fast VehicleBody3D is rotating this wheel by itself:
+		# it follows the ground speed, and fades out when in the air.
+		if wheel.is_in_contact():
+			_physics_wheel_rpm[i] = ground_rpm
+		else:
+			_physics_wheel_rpm[i] *= pow(0.99, delta * 60.0)
+
+		if not spin_wheel_visuals:
+			continue
+
+		var visual: Node3D = _wheel_visuals[i]
+
+		if visual == null:
+			continue
+
+		# Whatever the physics rotation is missing is added to the mesh.
+		var extra_rpm: float = wheel_rpm - _physics_wheel_rpm[i]
+		var extra_angle: float = extra_rpm * TAU / 60.0 * delta
+
+		_visual_spin_angle[i] = fposmod(
+			_visual_spin_angle[i] + extra_angle,
+			TAU
+		)
+
+		# Rolling forward is a NEGATIVE rotation around the wheel's X axle.
+		# If the wheels spin the wrong way, remove the minus sign here.
+		visual.basis = (
+			Basis(Vector3.RIGHT, -_visual_spin_angle[i]) *
+			_visual_rest_basis[i]
+		)
+
+
 func _update_gear_label() -> void:
-	var mat: StandardMaterial3D = reverse_light.get_active_material(0) as StandardMaterial3D
+	var mat: StandardMaterial3D = mesh.get_mesh().surface_get_material(3)
 	if current_gear == -1:
 		mat.emission_enabled = true
 	else:
