@@ -63,7 +63,7 @@ class_name CarController extends Node
 @export var stuck_wheelspin: float = 0.7
 
 # Brake settings.
-@export var max_brake_force: float = 80.0
+@export var max_brake_force: float = 95.0
 
 # Steering settings.
 @export var max_steering_angle: float = 0.3
