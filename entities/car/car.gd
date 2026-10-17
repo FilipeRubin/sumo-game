@@ -35,9 +35,9 @@ var emblem_bytes: PackedByteArray :
 var _recently_collided: Array[Car] = []
 
 func control_car() -> void:
-	$CarController.set_physics_process(true)
 	$Label.set_visible(true)
 	$PlayerLabel.set_visible(false)
+	$IndicatorController.set_process(true)
 	body_entered.connect(_on_body_entered)
 
 func destroy_car() -> void:
