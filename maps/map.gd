@@ -25,3 +25,14 @@ func get_safe_areas() -> Array[Transform3D]:
 	for i: Marker3D in _safe_areas_root.get_children():
 		result.append(i.get_transform())
 	return result
+
+func _ready() -> void:
+	if is_multiplayer_authority():
+		_shuffle_children(_team_1_spawners_root)
+		_shuffle_children(_team_2_spawners_root)
+
+func _shuffle_children(container: Node) -> void:
+	var children: Array[Node] = container.get_children()
+	children.shuffle()
+	for i in range(children.size()):
+		container.move_child(children[i], i)

@@ -38,7 +38,7 @@ class_name CarController extends Node
 @export var final_drive_ratio: float = 3.27
 @export var drivetrain_efficiency: float = 0.85
 @export var wheel_radius: float = 0.364
-@export var reverse_speed_limit: float = 4.5
+@export var reverse_speed_limit: float = 5.5
 
 # Automatic transmission settings.
 @export var shift_up_rpm: float = 5400.0
@@ -80,7 +80,7 @@ class_name CarController extends Node
 @export var audio_reference_rpm: float = 1800.0
 # Volume off throttle / at full throttle.
 @export var audio_min_volume_db: float = -14.0
-@export var audio_max_volume_db: float = 0.0
+@export var audio_max_volume_db: float = -10.0
 @export var audio_volume_response: float = 6.0
 
 # Gear values:

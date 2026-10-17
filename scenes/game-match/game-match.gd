@@ -5,7 +5,8 @@ signal back_to_lobby_requested()
 const MAPS: Array[PackedScene] = [
 	preload("res://maps/map0/map0.scn"),
 	preload("res://maps/map1/map1.scn"),
-	preload("res://maps/map2/map2.scn")
+	preload("res://maps/map2/map2.scn"),
+	preload("res://maps/map3/map3.scn")
 ]
 
 const SAFE_AREA: PackedScene = preload("res://entities/safe-area/safe-area.scn")
@@ -23,6 +24,8 @@ var _current_map: Map = null
 var _current_safe_area: SafeArea = null
 var _spectator_mode: bool = true
 var _spectating_car: int = 0
+
+var _round: int = 1
 
 func start_map(map_index: int) -> void:
 	if _current_map != null:
@@ -138,6 +141,14 @@ func _create_random_safe_area() -> void:
 	safe_area.set_transform(t)
 	_safe_area_container.add_child(safe_area, true)
 	_current_safe_area = safe_area
+	safe_area.set_safe_area_radius(10.0)
+	if _round >= 6:
+		safe_area.set_safe_area_radius(10.0)
+	elif _round >= 4:
+		safe_area.set_safe_area_radius(15.0)
+	elif _round >= 2:
+		safe_area.set_safe_area_radius(20.0)
+	_round += 1
 
 func _on_safe_timer_timeout() -> void:
 	_kill_unsafe_cars()
