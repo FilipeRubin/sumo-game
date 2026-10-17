@@ -101,6 +101,7 @@ class_name CarController extends Node
 const SLIP_SMOOTHING: float = 10.0
 
 var current_steering: float = 0.0
+@export
 var engine_rpm: float = 800.0
 var shift_timer: float = 0.0
 
@@ -123,14 +124,20 @@ var _physics_wheel_rpm: PackedFloat32Array = PackedFloat32Array()
 # Extra rotation we add on top of Godot's wheel rotation.
 var _visual_spin_angle: PackedFloat32Array = PackedFloat32Array()
 
+@export
+var throttle_input: float = 0.0
+
 func _ready() -> void:
-	set_physics_process(false)
 	_setup_wheels()
 
 func _physics_process(delta: float) -> void:
 	if vehicle == null:
 		return
-
+	
+	if not is_multiplayer_authority():
+		_update_engine_sound(throttle_input, delta)
+		return
+	
 	# Read the vehicle's forward speed.
 	var forward_speed: float = vehicle.linear_velocity.dot(
 		-vehicle.global_basis.z
@@ -143,7 +150,7 @@ func _physics_process(delta: float) -> void:
 	)
 
 	# Read inputs.
-	var throttle: float = Input.get_action_strength("accelerate")
+	throttle_input = Input.get_action_strength("accelerate")
 	var brake_input: float = Input.get_action_strength("brake")
 
 	is_braking = brake_input != 0.0
@@ -159,13 +166,13 @@ func _physics_process(delta: float) -> void:
 	# Drivetrain: traction -> wheels -> engine -> transmission.
 	clutch = move_toward(clutch, 1.0, clutch_response * delta)
 
-	_update_drive_slip(speed, throttle, brake_input, delta)
-	_update_wheel_rpm(ground_rpm, throttle, brake_input, delta)
-	_update_engine_rpm(throttle, delta)
-	_handle_automatic_transmission(delta, throttle)
+	_update_drive_slip(speed, throttle_input, brake_input, delta)
+	_update_wheel_rpm(ground_rpm, throttle_input, brake_input, delta)
+	_update_engine_rpm(throttle_input, delta)
+	_handle_automatic_transmission(delta, throttle_input)
 
 	# Apply engine force and brakes.
-	_apply_engine(throttle)
+	_apply_engine(throttle_input)
 	vehicle.brake = brake_input * max_brake_force
 
 	# Smooth steering. The steering angle shrinks as speed increases.
@@ -187,7 +194,7 @@ func _physics_process(delta: float) -> void:
 
 	# Wheel visuals and sound.
 	_update_wheel_visuals(ground_rpm, delta)
-	_update_engine_sound(throttle, delta)
+	_update_engine_sound(throttle_input, delta)
 
 	# Update dashboard.
 	_update_gear_label()
