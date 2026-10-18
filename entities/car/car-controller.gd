@@ -79,8 +79,8 @@ class_name CarController extends Node
 # RPM at which the loop sample was recorded (pitch_scale = 1.0).
 @export var audio_reference_rpm: float = 1800.0
 # Volume off throttle / at full throttle.
-@export var audio_min_volume_db: float = -14.0
-@export var audio_max_volume_db: float = -10.0
+@export var audio_min_volume_db: float = -20.0
+@export var audio_max_volume_db: float = -18.0
 @export var audio_volume_response: float = 6.0
 
 # Gear values:
