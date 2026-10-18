@@ -27,6 +27,11 @@ var _spectating_car: int = 0
 
 var _round: int = 1
 
+var _is_paused: bool = false
+
+func is_paused() -> bool:
+	return _is_paused
+
 func start_map(map_index: int) -> void:
 	if _current_map != null:
 		_current_map.queue_free()
@@ -77,6 +82,7 @@ func _process(_delta: float):
 	if Input.is_action_just_pressed("ui_close_dialog"):
 		_pause_menu.set_visible(not _pause_menu.is_visible())
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE if _pause_menu.is_visible() else Input.MOUSE_MODE_CAPTURED)
+		_is_paused = _pause_menu.is_visible()
 	_match_hud.set_visible(not _pause_menu.is_visible())
 	_match_hud.set_progress(_safe_timer.get_time_left())
 	
@@ -105,6 +111,7 @@ func _on_pause_menu_resume_pressed() -> void:
 	_pause_menu.set_visible(false)
 	_match_hud.set_visible(true)
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	_is_paused = _pause_menu.is_visible()
 
 func _on_pause_menu_lobby_pressed() -> void:
 	back_to_lobby_requested.emit()

@@ -127,6 +127,11 @@ var _visual_spin_angle: PackedFloat32Array = PackedFloat32Array()
 @export
 var throttle_input: float = 0.0
 
+var _game_match: GameMatch = null
+
+func set_game_match(game_match: GameMatch) -> void:
+	_game_match = game_match
+
 func _ready() -> void:
 	_setup_wheels()
 
@@ -150,16 +155,21 @@ func _physics_process(delta: float) -> void:
 	)
 
 	# Read inputs.
-	throttle_input = Input.get_action_strength("accelerate")
-	var brake_input: float = Input.get_action_strength("brake")
-
+	var brake_input: float
+	var steering_input: float
+	
+	if _game_match != null and not _game_match.is_paused():
+		throttle_input = Input.get_action_strength("accelerate")
+		brake_input = Input.get_action_strength("brake")
+		steering_input = Input.get_axis(
+			"steer_right",
+			"steer_left"
+		)
+	else:
+		throttle_input = 0.0
+	
 	is_braking = brake_input != 0.0
-
-	var steering_input: float = Input.get_axis(
-		"steer_right",
-		"steer_left"
-	)
-
+	
 	# Toggle between Drive and Reverse.
 	_handle_drive_input(speed)
 

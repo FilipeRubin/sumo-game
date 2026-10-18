@@ -37,11 +37,19 @@ var indicator: TurnSignalMode = TurnSignalMode.OFF :
 						left_mat.emission_enabled = true
 						right_mat.emission_enabled = true
 
+var _game_match: GameMatch = null
+
+func set_game_match(game_match: GameMatch) -> void:
+	_game_match = game_match
+
 func _ready() -> void:
 	set_process(false)
 	indicator_timer.timeout.connect(_on_indicator_timer_timeout)
 
 func _process(_delta: float) -> void:
+	if _game_match == null or _game_match.is_paused():
+		return
+	
 	if Input.is_action_just_pressed("turn_signal_left"):
 		if indicator == TurnSignalMode.LEFT:
 			indicator_multiplayer = TurnSignalMode.OFF

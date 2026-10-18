@@ -34,10 +34,14 @@ var emblem_bytes: PackedByteArray :
 
 var _recently_collided: Array[Car] = []
 
+@onready var _game_match: GameMatch = get_parent().get_parent() as GameMatch
+
 func control_car() -> void:
 	$Label.set_visible(true)
 	$PlayerLabel.set_visible(false)
 	$IndicatorController.set_process(true)
+	$CarController.set_game_match(_game_match)
+	$IndicatorController.set_game_match(_game_match)
 	body_entered.connect(_on_body_entered)
 
 func destroy_car() -> void:
