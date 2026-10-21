@@ -3,6 +3,7 @@ class_name CarController extends Node
 # Vehicle references.
 @export var vehicle: VehicleBody3D
 @export var mesh: MeshInstance3D
+@export var shifter_sound: AudioStreamPlayer3D
 
 # Optional: leave empty to auto-detect the VehicleWheel3D children of the vehicle.
 # Only wheels with "use_as_traction" enabled are treated as driven wheels.
@@ -77,10 +78,10 @@ class_name CarController extends Node
 # A looping AudioStreamPlayer3D (change the type if you use a plain AudioStreamPlayer).
 @export var engine_audio: AudioStreamPlayer3D
 # RPM at which the loop sample was recorded (pitch_scale = 1.0).
-@export var audio_reference_rpm: float = 1800.0
+@export var audio_reference_rpm: float = 1400.0
 # Volume off throttle / at full throttle.
-@export var audio_min_volume_db: float = -20.0
-@export var audio_max_volume_db: float = -18.0
+@export var audio_min_volume_db: float = -10.0
+@export var audio_max_volume_db: float = 0.0
 @export var audio_volume_response: float = 6.0
 
 # Gear values:
@@ -619,6 +620,10 @@ func _update_engine_sound(throttle: float, delta: float) -> void:
 func _update_gear_label() -> void:
 	var mat: StandardMaterial3D = mesh.get_mesh().surface_get_material(3)
 	if current_gear == -1:
-		mat.emission_enabled = true
+		if not mat.emission_enabled:
+			mat.emission_enabled = true
+			shifter_sound.play()
 	else:
-		mat.emission_enabled = false
+		if mat.emission_enabled:
+			mat.emission_enabled = false
+			shifter_sound.play()
